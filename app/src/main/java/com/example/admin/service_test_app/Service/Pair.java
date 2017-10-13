@@ -3,17 +3,21 @@ package com.example.admin.service_test_app.Service;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
+import android.text.InputFilter;
 import android.text.InputType;
 import android.text.TextWatcher;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -95,13 +99,14 @@ public class Pair {
             public void deviceFound(BluetoothDevice device) {
                 if (this.device == null) {
                     this.device = device;
-                    appendLog("found device first time " + device + " waiting for next");
+                    appendLog("found device first time1 " + device + " waiting for next");
+
                 } else if (this.device.getAddress().equals(device.getAddress())) {
                     pairingDevice = device;
                     btConn.connect(device);
                 } else {
                     this.device = device;
-                    appendLog("found device first time " + device + " waiting for next");
+                    appendLog("found device first time2 " + device + " waiting for next");
                 }
             }
 
@@ -120,7 +125,7 @@ public class Pair {
     }
 
     private void appendLog(final String message) {
-        Log.v("RUFFY_LOG", message);
+        Log.v("Pair", message);
     }
 
     public void handleRX(byte[] inBuf, int length, boolean rel) {
@@ -180,6 +185,7 @@ public class Pair {
                     for (byte b : key_dp)
                         d += String.format("%02X ", b);
                     appendLog("parseRx >>> Key_DP: " + d);
+
 
 
                     btConn.getPumpData().setAndSaveToDeviceKey(key_pd,tf);
@@ -294,38 +300,65 @@ public class Pair {
                         @Override
                         public void run() {
 
-                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-
-                            final EditText pinIn = new EditText(activity);
-                            pinIn.setInputType(InputType.TYPE_CLASS_NUMBER);
-                            pinIn.setHint("XXX XXX XXXX");
-
                             Pdata.setPinokay(false);
 
-                            final AlertDialog AD = new AlertDialog.Builder(activity)
+                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+                            final EditText pinIn = new EditText(activity);
+                            pinIn.setGravity(Gravity.CENTER);
+                            pinIn.setInputType(InputType.TYPE_CLASS_NUMBER);
+                            // pinIn.setHint("XXX XXX XXXX");
+                            final AlertDialog AD = new AlertDialog.Builder(activity,R.style.CustomAlertDialog)
                                     .setTitle("Enter Pin")
                                     .setMessage("Read the Pin-Code from pump and enter it")
                                     .setView(pinIn)
-                                    .setPositiveButton("ENTER", new DialogInterface.OnClickListener() {
-                                        public void onClick(DialogInterface dialog, int whichButton) {
-                                            String pin = pinIn.getText().toString();
-                                            appendLog("got the pin: " + pin);
-                                            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                                public void onClick(DialogInterface dialog, int whichButton) {
+                                                    Log.v("Enter Pin Screen", "cancel");
+                                                }
+                                            }
+                                    )
+                                    .setPositiveButton("Enter", new DialogInterface.OnClickListener() {
+                                                public void onClick(DialogInterface dialog, int whichButton) {
+                                                    String pin = pinIn.getText().toString();
+                                                    Log.v("testScreen", "Pin->" + pin + " ->" + pin.length() + " Zeichen");
+                                                    appendLog("got the pin: " + pin);
+                                                    activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
-                                            Pdata.setPinokay(true);
+                                                    Pdata.setPinokay(true);
 
-                                            Pdata.setPin(Utils.generateKey(pin));
-                                            step = 2;
-                                            //sending key available:
-                                            appendLog(" doing A_KEY_AVA");
-                                            byte[] key = {16, 15, 2, 0, -16};
-                                            btConn.writeCommand(key);
-
-                                        }
-                                    }
+                                                    Pdata.setPin(Utils.generateKey(pin));
+                                                    step = 2;
+                                                    //sending key available:
+                                                    appendLog(" doing A_KEY_AVA");
+                                                    byte[] key = {16, 15, 2, 0, -16};
+                                                    btConn.writeCommand(key);
+                                                }
+                                            }
                                     ).show();
 
 
+                                    AD.getWindow().setLayout(400, 320);
+                                    pinIn.setFilters(new InputFilter[]{new InputFilter.LengthFilter(10)});
+                                    pinIn.setTextSize(30);
+                                    AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                                    pinIn.addTextChangedListener(new TextWatcher() {
+                                        @Override
+                                        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                                        @Override
+                                        public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                                        @Override
+                                        public void afterTextChanged(Editable editable) {
+                                            String pin = pinIn.getText().toString();
+                                            if (pin.length() == 10) {
+                                                AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                            } else {
+                                                AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                                            }
+                                        }
+
+                                    });
                         }
                     });
                 }
@@ -379,6 +412,8 @@ public class Pair {
             break;
         }
     }
+
+
 }
 
 

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.RemoteException;
+import android.util.Log;
 
 // import com.example.admin.service_test_app.aidl.IRT ;
 
@@ -40,6 +41,7 @@ public class PumpData {
         
         SharedPreferences prefs = activity.getSharedPreferences("pumpdata", Activity.MODE_PRIVATE);
         String dp = prefs.getString("dp",null);
+
         String pd = prefs.getString("pd",null);
         data.pumpMac = prefs.getString("device",null);
 
@@ -82,6 +84,9 @@ public class PumpData {
                 return null;
             }
         }
+        Log.v("PumpData","loadPump MAC -> " + data.pumpMac);
+        Log.v("PumpData","loadPump dp -> " + data.driver_tf);
+        Log.v("PumpData","loadPump pd -> " + data.pump_tf);
         return data;
     }
 
@@ -154,7 +159,7 @@ public class PumpData {
     public void setAndSavePumpMac(String pumpMac) {
         this.pumpMac = pumpMac;
         SharedPreferences prefs = getActivity().getSharedPreferences("pumpdata", Activity.MODE_PRIVATE);
-
+        Log.v("PumpData","setAndSavePumpMac -> " + pumpMac);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("device",pumpMac);
         editor.putBoolean("paired",true);

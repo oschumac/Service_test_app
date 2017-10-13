@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.util.Log;
 
 import com.example.admin.service_test_app.ruffy.ConnectReceiver;
 import com.example.admin.service_test_app.ruffy.*;
@@ -153,52 +154,80 @@ public class BTConnection {
         new Thread() {
             @Override
             public void run() {
-                try {
-                    currentConnection.connect();//This method will block until a connection is made or the connection fails. If this method returns without an exception then this socket is now connected.
-                    currentInput = currentConnection.getInputStream();
-                    currentOutput = currentConnection.getOutputStream();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    handler.fail("no connection possible");
-                    //return;
-
-
-                    //??????????
-                    //state=1;
-                    //return;
-                }
-                try {
-                    pumpData.getActivity().unregisterReceiver(connectReceiver);
-                }catch(Exception e){/*ignore*/}
-                try {
-                    pumpData.getActivity().unregisterReceiver(pairingReciever);
-                }catch(Exception e){/*ignore*/}
-                state=0;
-
-                //here check if really connected!
-                //this will start thread to write
-                handler.deviceConnected();//in ruffy.java
-
-
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                byte[] buffer = new byte[512];
-                while (true) {
+                int retry = 5;
+                while (currentConnection.isConnected()==false && retry>0) {
                     try {
-                        int bytes = currentInput.read(buffer);
-                        handler.log("read "+bytes+": "+Utils.byteArrayToHexString(buffer,bytes));
-                        handler.handleRawData(buffer,bytes);
-                    } catch (Exception e) {
-                        //e.printStackTrace();
-                        //do not fail here as we maybe just closed the socket..
-                        handler.log("got error in read");
-                        return;
+                        Log.e("BTConnection "," startReadThread() currentConnection.connect() ->"+retry);
+                        currentConnection.connect();//This method will block until a connection is made or the connection fails. If this method returns without an exception then this socket is now connected.
+                        currentInput = currentConnection.getInputStream();
+                        currentOutput = currentConnection.getOutputStream();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        retry--;
+                        Log.e("BTConnection "," startReadThread() no connection possible retry ->"+retry);
                     }
                 }
+
+
+                if (currentConnection.isConnected()==true) {
+
+                    try {
+                        pumpData.getActivity().unregisterReceiver(connectReceiver);
+                    }catch(Exception e){/*ignore*/}
+                    try {
+                        pumpData.getActivity().unregisterReceiver(pairingReciever);
+                    }catch(Exception e){/*ignore*/}
+                    state=0;
+
+                    //here check if really connected!
+                    //this will start thread to write
+                    handler.deviceConnected();//in ruffy.java
+
+
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    byte[] buffer = new byte[512];
+                    Log.v("BTConnection"," while read ");
+                    while (currentConnection.isConnected()) {
+                        try {
+
+                            int bytes = currentInput.read(buffer);
+                            // Log.v("BTConnection"," read "+bytes+": "+Utils.byteArrayToHexString(buffer,bytes));
+                            handler.handleRawData(buffer,bytes);
+                        } catch (Exception e) {
+                            //e.printStackTrace();
+                            //do not fail here as we maybe just closed the socket..
+                            Log.e("BTConnection"," got error in read"+e);
+                            return;
+                        }
+                    }
+
+                    // close all objekts
+                    Log.v("BTConnection"," readThread stopped");
+                    try {
+                        currentConnection.close();
+                    } catch (IOException e) {
+                        //e.printStackTrace();
+                    }
+                    try {
+                        currentInput.close();
+                    } catch (IOException e) {
+                        //e.printStackTrace();
+                    }
+                    try {
+                        currentOutput.close();
+                    } catch (IOException e) {
+                        //e.printStackTrace();
+                    }
+
+
+                }
+
+
             }
         }.start();
     }
@@ -231,7 +260,11 @@ public class BTConnection {
             sb.append(String.format("%02X ", key[i]));
         }
         //handler.log("writing command: "+sb.toString());
-        write(ro);
+        try {
+            write(ro);
+        } catch (Exception e) {
+            Log.e("BTConnection "," failed to write()");
+        }
     }
 
     private void activateConnection(BluetoothSocket newConnection){
@@ -259,7 +292,7 @@ public class BTConnection {
         }
     }
 
-    public void write(byte[] ro){
+    public void write(byte[] ro) throws IOException {
 
         if(this.currentConnection==null)
         {
@@ -268,11 +301,12 @@ public class BTConnection {
         }
         try {
             currentOutput.write(ro);
-            //handler.log("wrote "+ro.length+" bytes: "+Utils.byteArrayToHexString(ro,ro.length));
+            Log.v("BTConnection write()","wrote "+ro.length+" bytes: "+Utils.byteArrayToHexString(ro,ro.length));
         }catch(Exception e)
         {
             //e.printStackTrace();
-            handler.fail("failed write of "+ro.length+" bytes!");
+            Log.e("BTConnection write()","failed write of "+ro.length+" bytes!");
+            this.currentConnection.close();
         }
     }
 

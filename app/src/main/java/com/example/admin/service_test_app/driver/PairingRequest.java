@@ -39,24 +39,39 @@ class PairingRequest extends BroadcastReceiver {
                                 // m.invoke(device, pinBytes);
                                 handler.log("Success to add the PIN.");
 
-                                try {
-                                    //m = device.getClass().getMethod("createBond");
-                                    //m.invoke(device);
-                                    device.createBond();
-
-                                } catch (Exception e) {
-                                    handler.log("No Success to start bond.");
-                                    e.printStackTrace();
+                                int loop=3;
+                                boolean bonded=false;
+                                while (loop>0 && !bonded) {
+                                    try {
+                                        //m = device.getClass().getMethod("createBond");
+                                        //m.invoke(device);
+                                        device.createBond();
+                                        bonded=true;
+                                    } catch (Exception e) {
+                                        handler.log("No Success to start bond.");
+                                        e.printStackTrace();
+                                        Thread.sleep(100);
+                                        loop--;
+                                    }
+                                    loop=0;
                                 }
 
-                                try {
-                                    device.setPairingConfirmation(true);
+                                loop=3;
+                                Boolean Pairconfirm=false;
+                                while (loop>3 && !Pairconfirm) {
+                                    try {
+                                        device.setPairingConfirmation(true);
+                                        Pairconfirm=true;
+                                        // device.getClass().getMethod("setPairingConfirmation", boolean.class).invoke(device, true);
+                                        handler.log( "Success to setPairingConfirmation.");
+                                    } catch (Exception e) {
+                                        handler.log( "No Success to setPairingConfirmation.");
+                                        e.printStackTrace();
+                                        Thread.sleep(100);
+                                        loop--;
+                                    }
+                                    loop=0;
 
-                                    // device.getClass().getMethod("setPairingConfirmation", boolean.class).invoke(device, true);
-                                    handler.log( "Success to setPairingConfirmation.");
-                                } catch (Exception e) {
-                                    handler.log( "No Success to setPairingConfirmation.");
-                                    e.printStackTrace();
                                 }
                             }catch(Exception e)
                             {

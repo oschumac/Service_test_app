@@ -138,29 +138,33 @@ public class Packet {
         byte c = (byte)(command & 0x1F);
         switch (c) {
             case 20:
-               // handler.log("got an id response");
+                handler.log("got an id response");
                 if (Utils.ccmVerify(packetNoUmac, handler.getToDeviceKey(), umac, nonce)) {
                     handler.handleResponse(Response.ID,reliableFlagged,payload);
                 }
                 break;
             case 24:
-               // handler.log("got a sync response ");
+                handler.log("got a sync response ");
                 if (Utils.ccmVerify(packetNoUmac, handler.getToDeviceKey(), umac, nonce)) {
                     handler.handleResponse(Response.SYNC,reliableFlagged,payload);
                 }
                 break;
 
             case 0x23:
+                handler.log("got RELIABLE_DATA");
                 if (Utils.ccmVerify(packetNoUmac, handler.getToDeviceKey(), umac, nonce)) {
                     handler.handleResponse(Response.RELIABLE_DATA,reliableFlagged,payload);
                 }
                 break;
             case 0x03:
+                handler.log("got UN_RELIABLE_DATA");
                 if (Utils.ccmVerify(packetNoUmac, handler.getToDeviceKey(), umac, nonce)) {
                     handler.handleResponse(Response.UNRELIABLE_DATA,reliableFlagged,payload);
                 }
                 break;
             case 0x05:
+                handler.log("got ack response");
+
                 //ignore ack response
                 break;
 

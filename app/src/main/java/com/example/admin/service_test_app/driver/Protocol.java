@@ -1,6 +1,7 @@
 package com.example.admin.service_test_app.driver;
 
 import android.bluetooth.BluetoothAdapter;
+import android.util.Log;
 
 import com.example.admin.service_test_app.ruffy.Frame;
 
@@ -13,25 +14,34 @@ import java.util.List;
  */
 
 public class Protocol {
-    public static void sendSyn(BTConnection btConn)  {
 
+    public static void sendSyn(BTConnection btConn) {
+
+        Log.v("Protocol", " sendSyn");
         Utils.incrementArray(btConn.getPumpData().getNonceTx());
 
-        byte[] p_s = {16,23,0,0,0};
+        byte[] p_s = {16, 23, 0, 0, 0};
 
-        List<Byte> packet = Packet.buildPacket(p_s, null, true, btConn);							//Use real address (gathered in Key Response)
-        packet = Utils.ccmAuthenticate(packet, btConn.getPumpData().getToPumpKey(), btConn.getPumpData().getNonceTx());			//Add U-MAC (Use D->P key)
+        List<Byte> packet = Packet.buildPacket(p_s, null, true, btConn);                            //Use real address (gathered in Key Response)
+        packet = Utils.ccmAuthenticate(packet, btConn.getPumpData().getToPumpKey(), btConn.getPumpData().getNonceTx());            //Add U-MAC (Use D->P key)
 
         List<Byte> temp = Frame.frameEscape(packet);
         byte[] ro = new byte[temp.size()];
         int i = 0;
-        for(byte b : temp)
-            ro[i++]=b;
+        for (byte b : temp)
+            ro[i++] = b;
 
-        btConn.write(ro);
+
+        try {
+            btConn.write(ro);
+        } catch (Exception e) {
+            Log.e("Protocoll" , " sendSyn failed" );
+        }
     }
     public static void sendIDReq(BTConnection btConn) {
+        //btConn // Überprüfen !!!
         btConn.getPumpData().resetTxNonce();														//Reset TX Nonce (previous to this the nonce is not used and is zero)
+
         Utils.incrementArray(btConn.getPumpData().getNonceTx());														//Increment it to 1
 
         ByteBuffer ids = ByteBuffer.allocate(17);								//Allocate payload
@@ -61,7 +71,7 @@ public class Protocol {
 
         byte[] p_r = {16,0x12,17,0,0};
 
-        List<Byte> packet = Packet.buildPacket(p_r, ids, true,btConn);							//Use real address (gathered in Key Response)
+        List<Byte> packet = Packet.buildPacket(p_r, ids, true, btConn);							//Use real address (gathered in Key Response)
         packet = Utils.ccmAuthenticate(packet, btConn.getPumpData().getToPumpKey(), btConn.getPumpData().getNonceTx());			//Add U-MAC (Use D->P key)
 
         List<Byte> temp = Frame.frameEscape(packet);
@@ -70,7 +80,12 @@ public class Protocol {
         for(byte b : temp)
             ro[i++]=b;
 
-       btConn.write(ro);
+       try {
+           btConn.write(ro);
+
+       } catch (Exception e) {
+           Log.e("Protocol", "sendIDREG failed" );
+       }
     }
 
     public static void sendAck(byte sequenceNUmber,BTConnection btConn) {
@@ -88,6 +103,11 @@ public class Protocol {
         for (byte b : temp)
             ro[i++] = b;
 
-        btConn.write(ro);
+        try {
+            btConn.write(ro);
+
+        } catch (Exception e) {
+            Log.e("Protocol", "sendAck failed" );
+        }
     }
 }

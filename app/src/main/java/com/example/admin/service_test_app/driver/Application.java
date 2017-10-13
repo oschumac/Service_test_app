@@ -1,10 +1,17 @@
 package com.example.admin.service_test_app.driver;
 
+import android.os.Debug;
+import android.util.Log;
+
 import com.example.admin.service_test_app.ruffy.Frame;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static android.content.ContentValues.TAG;
 
 /**
  * Some statics to do some things on application level
@@ -42,7 +49,7 @@ public class Application {
         Application.sendData(payload,true,btConn);
     }
 
-    private static void sendData(ByteBuffer payload, boolean reliable, BTConnection btConn)  {
+    private static void sendData(ByteBuffer payload, boolean reliable, BTConnection btConn){
         btConn.getPumpData().incrementNonceTx();
 
         byte[] sendR = {16,3,0,0,0};
@@ -64,7 +71,13 @@ public class Application {
         for(byte b : temp)
             ro[i++]=b;
 
-        btConn.write(ro);
+        try {
+            btConn.write(ro);
+
+        } catch (Exception e) {
+            Log.e("Application ","sendData() failed -> "  + e);
+        }
+
     }
 
     private static Byte setSeqRel(Byte b, boolean rel, BTConnection btConn)
@@ -176,6 +189,8 @@ public class Application {
                 break;
         }
 
+        Log.v("Application"," sendAppCommand-" + s);
+
         if(payload != null)
         {
             sendData(payload,reliable,btConn);
@@ -277,7 +292,8 @@ public class Application {
         return rtSeq;
     }
 
-    public static void processAppResponse(byte[] payload, boolean reliable, AppHandler handler) {
+    //public static void processAppResponse(byte[] payload, boolean reliable, AppHandler handler) {
+    public static void processAppResponse(byte[] payload, boolean reliable) {
         //handler.log("processing app response");
         ByteBuffer b = ByteBuffer.wrap(payload);
         b.order(ByteOrder.LITTLE_ENDIAN);
@@ -292,31 +308,35 @@ public class Application {
         if(reliable)
         {
             short error = b.getShort();
-            if (!cmdProcessError(error,handler)) {
+            if (!cmdProcessError(error)) {
                 return;
             }
 
             switch (commId) {
                 case (short) 0xA055://connect answer:
-                    handler.connected();
+                    descrip = "connect answer";
+                    //handler.connected();
                     break;
                 case (short) 0xA065://something
+                    descrip = "something";
                 case (short) 0xA095://bind
+                    descrip = "bind";
                     //handler.log("not should happen here!");
                     break;
                 case (short) 0xA066://activate rt:
-                    handler.rtModeActivated();
+                    descrip = "activate rt";
+                    //handler.rtModeActivated();
                     break;
                 case (short) 0x005A://AL_DISCONNECT_RES:
                     descrip = "AL_DISCONNECT_RES";
                     break;
                 case (short) 0xA069://service deactivated
                     descrip = "AL_DEACTIVATE_RES";
-                    handler.modeDeactivated();
+                    //handler.modeDeactivated();
                     break;
                 case (short) 0xA06A://service all deactivate
                     descrip = "AL_DEACTIVATE_ALL_RES";
-                    handler.modeDeactivated();
+                    //handler.modeDeactivated();
                     break;
                 default:
                     descrip = "UNKNOWN";
@@ -325,22 +345,26 @@ public class Application {
         } else {
             switch (commId) {
                 case (short) 0x0555://Display frame
-                    handler.addDisplayFrame(b);
+                    descrip = "Display Frame";
+                    //handler.addDisplayFrame(b);
                     break;
                 case (short) 0x0556://key answer
-                    handler.keySent(b);
+                    descrip = "key answer";
+                    //handler.keySent(b);
                     break;
                 case (short) 0x0566://alive answer, often missed
+                    descrip = "alive answer";
                     break;
                 default:
                     descrip = "UNKNOWN";
                     break;
             }
         }
-        //handler.log("appProcess: "+descrip);
+        Log.v("Application() ","processAppresponce(): "+descrip);
     }
 
-    private static boolean cmdProcessError(short error, AppHandler handler) {
+    //private static boolean cmdProcessError(short error, AppHandler handler) {
+    private static boolean cmdProcessError(short error) {
         String desc = "Error > " + String.format("%X", error) + " ";
 
         if (error == 0x0000) {
@@ -357,12 +381,12 @@ public class Application {
                     break;
                 case (short) 0xF05F:
                     desc = "wrong mode";
-                    handler.modeError();
+                    // handler.modeError();
                     break;
 
                 case (short) 0xF50C:
                     desc = "wrong sequence";
-                    handler.sequenceError();
+                    //handler.sequenceError();
                     break;
                 case (short) 0xF533:
                     desc = "died - no alive";
@@ -372,8 +396,57 @@ public class Application {
                     break;
             }
 
-            handler.error(error,desc);
+            //handler.error(error,desc);
             return false;
         }
+    }
+
+
+    public static void cmdDeliverBolus(double bolus,BTConnection locBT) {
+        String FUNC_TAG = "deliverBolus";
+        final byte AL_VERSION = (byte) 16;
+        final short CBOL_BOLUS_DELIVER = (short) -22935;
+        final byte COMMAND_MODE_SERVICE_ID = (byte) -73;
+        final byte AL_SERVICE_DEACTIVATE_REQ_LSB = (byte) 105;
+        final byte AL_SERVICE_DEACTIVATE_REQ_MSB = (byte) -112;
+        final byte AL_CONNECT_REQ_LSB = (byte) 85;
+
+        // CC 10 A3 1A 00 10 BA 57 00 00 00 00 00 00 00 00 00 00 00 10 B7 69 96 55 59 01 00 00 00 00 00 00 00 80 3F 00 00 00 00 00 00 00 00 D4 35 CE 76 53 D2 67 F7 E8 B6 CC
+
+
+        ByteBuffer payload = ByteBuffer.allocate(26);
+        payload.put(AL_VERSION);
+        payload.put(COMMAND_MODE_SERVICE_ID);
+        payload.put(AL_SERVICE_DEACTIVATE_REQ_LSB);
+        payload.put((byte) -106);
+        payload.put(AL_CONNECT_REQ_LSB);
+        payload.put((byte) 89);
+        payload.order(ByteOrder.LITTLE_ENDIAN);
+        payload.putShort((short) bolus);
+        payload.putShort((short) 0);
+        payload.putShort((short) 0);
+        payload.putFloat((float) bolus);
+        payload.putFloat(0.0f);
+        payload.putFloat(0.0f);
+        short crc = (short) -1;
+
+        for (int i = 4; i < 24; i += 1) {
+            crc = Utils.updateCrc(crc, payload.get(i));
+        }
+
+        payload.putShort(crc);
+
+        boolean reliable = true;
+        sendData(payload,reliable,locBT);
+
+        Log.v(TAG,"cmdDeliverBolus Bolus-> " + bolus);
+        // sendData(payload, "SEND_CBOL_DELIVER", CBOL_BOLUS_DELIVER, retries, timeout, bolus);
+        /*
+        setBolusState(BOLUS_CMD_RESP);
+        if (commandTimer != null) {
+            commandTimer.cancel(truce);
+        }
+        commandTimer = scheduler.schedule(this.command, 15000, TimeUnit.MILLISECONDS);
+        */
     }
 }

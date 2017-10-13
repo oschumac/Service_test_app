@@ -1,21 +1,33 @@
 package com.example.admin.service_test_app;
 
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.text.Editable;
+import android.text.InputFilter;
+import android.text.InputType;
+import android.text.TextWatcher;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
 
 import com.example.admin.service_test_app.Service.justatestService;
+import com.example.admin.service_test_app.driver.Application;
+import com.example.admin.service_test_app.driver.Utils;
 
 public class MainActivity extends AppCompatActivity {
     public justatestService mjustatestService;
@@ -38,13 +50,27 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View view) {
-                if (mjustatestService.malsehen(MainActivity.this)) {
-                    Snackbar.make(view, "Worker gestarted", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                //testScreen(MainActivity.this);
 
+
+                if (mjustatestService.isBTConnected()) {
+                    // mjustatestService.sendPumpCommandMode();
+                    mjustatestService.cmddeliverBolus(1.0);
+
+                    Snackbar.make(view, "cmddeliverBolus(1.0)", Snackbar.LENGTH_LONG).setAction("Action", null).show();
                 } else {
-                    Snackbar.make(view, "Worker gestoppt", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    if (mjustatestService.malsehen(MainActivity.this)) {
+                        Snackbar.make(view, "Worker gestarted", Snackbar.LENGTH_LONG).setAction("Action", null).show();
 
+                    } else {
+                        Snackbar.make(view, "Worker gestoppt", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+
+                    }
                 }
+
+
+
+
             }
         });
 
@@ -130,4 +156,62 @@ public class MainActivity extends AppCompatActivity {
     };
 
 
+    private void testScreen(Activity activity) {
+
+        activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+
+        final EditText pinIn = new EditText(activity);
+        pinIn.setGravity(Gravity.CENTER);
+        pinIn.setInputType(InputType.TYPE_CLASS_NUMBER);
+        // pinIn.setHint("XXX XXX XXXX");
+
+        final AlertDialog AD = new AlertDialog.Builder(activity, R.style.CustomAlertDialog)
+
+                            .setTitle("Enter Pin")
+                            .setMessage("Read the Pin-Code from pump and enter it")
+                            .setView(pinIn)
+                            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    Log.v("Enter Pin Screen", "cancel");
+                                }
+                            }
+                            )
+                            .setPositiveButton("Enter", new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int whichButton) {
+                                            String pin = pinIn.getText().toString();
+                                            Log.v("testScreen", "Pin->" + pin + " ->" + pin.length() + " Zeichen");
+                                        }
+                                    }
+                            ).show();
+
+                        AD.getWindow().setLayout(400, 320);
+                        pinIn.setFilters(new InputFilter[] { new InputFilter.LengthFilter(10) });
+                        pinIn.setTextSize(30);
+                        AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                        pinIn.addTextChangedListener(new TextWatcher() {
+                            @Override
+                            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+                            }
+
+                            @Override
+                            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+                            }
+
+                            @Override
+                            public void afterTextChanged(Editable editable) {
+                                String pin = pinIn.getText().toString();
+                                if (pin.length()==10) {
+                                    AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                } else {
+                                    AD.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                                }
+                            }
+
+                        });
+    }
 }
+
+
+
